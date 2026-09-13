@@ -23,3 +23,13 @@ test('student opens, completes 20 questions, retains retry identity and resets f
 test('configuration failure provides retry instead of a blank page',async()=>{
  const dom=new JSDOM('<div id="app"></div><div id="toast"></div>',{url:'https://example.test/',runScripts:'outside-only'}),w=dom.window;w.AbortController=AbortController;w.fetch=async()=>{throw Error('offline')};w.eval(['core.js','student.js','boot.js'].map(source).join('\n')); await tick();assert.ok(w.document.getElementById('retryConfig'));dom.window.close();
 });
+test('teacher polls without overlapping requests and keeps previous data when offline',async()=>{
+ const dom=new JSDOM('<div id="app"></div><div id="toast"></div>',{url:'https://example.test/?view=admin',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+ const payload={roster:[],archivedRoster:[],deletedRoster:[],archives:[],audit:[],settings:{currentCycleLabel:'اختبار',currentCycleId:'legacy',classLabels:['2/أ'],expectedGrade:'ثاني متوسط',totalTarget:120,perClassTarget:30},duplicatesCollapsed:0,normalizedLegacyCount:0};
+ let count=0,fail=false,release;const jobs=new Map();let seq=0;
+ w.setTimeout=(f,ms)=>{jobs.set(++seq,{f,ms});return seq};w.clearTimeout=id=>jobs.delete(id);w.AbortController=AbortController;
+ w.fetch=async()=>{count++;if(count===1)await new Promise(r=>release=r);if(fail)throw Error('offline');return{ok:true,json:async()=>payload}};
+ w.eval(['core.js','stats.js','teacher.js','boot.js'].map(source).join('\n'));
+ w.dispatchEvent(new w.Event('online'));assert.equal(count,1);release();await tick();assert.match(w.document.body.textContent,/النتائج والتحليل/);
+ const poll=[...jobs.values()].find(j=>j.ms===15000);assert.ok(poll);fail=true;poll.f();await tick();assert.equal(count,2);assert.match(w.document.body.textContent,/النتائج والتحليل/);assert.match(w.document.body.textContent,/البيانات السابقة ما زالت معروضة/);dom.window.close();
+});

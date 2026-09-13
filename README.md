@@ -36,3 +36,14 @@ npx netlify dev
 
 
 Access: student and teacher views are public, without a login, as requested by the owner. ADMIN_PIN is no longer required.
+
+
+## Reliability verification — 2026-09-13
+
+- Removed a MutationObserver feedback loop that froze the student page.
+- Atomic student writes use PostgreSQL transactions, indexed identity lookup, and request idempotency.
+- Dashboard refreshes every 15 seconds without overlapping requests and retains the last data on failure.
+- PDF libraries are served with the application instead of blocking startup on a third-party CDN.
+- Run `npm ci && npm test` for the automated student journey, failed-save retry, configuration retry, and dashboard polling tests.
+- Production verification: 10 concurrent identical submissions returned HTTP 200 and stored one row; 20 concurrent configuration reads returned HTTP 200. Delete/restore and replay-after-delete passed. The synthetic record remains in recoverable trash.
+- These bounded checks are not a high-volume capacity certification. Free-plan quotas still apply. Direct browser visual verification was blocked by the existing browser session timing out; the deployed page and runtime returned HTTP 200, and the student journey passed in the DOM test harness.
