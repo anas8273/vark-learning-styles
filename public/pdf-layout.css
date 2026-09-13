@@ -1,0 +1,31 @@
+/* Fixed A4 export layout, independent of the application viewport. */
+.pdf-root,.pdf-root *{box-sizing:border-box}
+.pdf-root .pdf-page{width:794px;height:1123px;padding:0 40px;direction:rtl;font-family:'Tajawal',Arial,sans-serif}
+.pdf-root .pdf-header{height:108px;padding:24px 0 14px;gap:24px;align-items:center;overflow:hidden}
+.pdf-root .pdf-logo{flex:0 0 150px;width:150px;height:68px;min-width:150px;display:flex;align-items:center;justify-content:center}
+.pdf-root .pdf-logo img{display:block;width:150px!important;height:auto!important;max-width:150px!important;max-height:68px!important;object-fit:contain;flex:none}
+.pdf-root .pdf-org{flex:1;min-width:0;text-align:left;line-height:1.5}
+.pdf-root .pdf-org span{font-size:10px}.pdf-root .pdf-org b{font-size:14px}.pdf-root .pdf-org em{font-size:12px}
+.pdf-root .pdf-body{padding-top:20px}
+.pdf-root .pdf-title{margin:0 0 16px;text-align:center}
+.pdf-root .pdf-title h1{font-size:23px;line-height:1.5;margin:0 0 4px}
+.pdf-root .pdf-title p{font-size:11px;line-height:1.6}
+.pdf-root .pdf-meta{margin-bottom:10px;gap:8px}.pdf-root .pdf-meta div{min-height:52px;padding:5px}
+.pdf-root .pdf-meta span{font-size:10px}.pdf-root .pdf-meta b{font-size:12px;line-height:1.5}
+.pdf-root .pdf-cycle{font-size:12px;line-height:1.7;margin:6px 0}
+.pdf-root .pdf-scope{height:auto;min-height:38px;padding:8px 10px;font-size:12px;line-height:1.5;gap:10px;margin:8px 0}
+.pdf-root .pdf-table th,.pdf-root .pdf-table td{height:32px;font-size:12px;line-height:1.4;vertical-align:middle}
+.pdf-root .pdf-table th{height:36px;font-size:11.5px}
+.pdf-root .pdf-cell{height:auto;min-height:32px;padding:5px 6px;line-height:1.4;transform:none;overflow-wrap:anywhere;text-align:center}
+.pdf-root .pdf-table th .pdf-cell{min-height:36px}
+.pdf-root .pdf-group th{background:#15445a;color:#fff}
+.pdf-root .pdf-group th:nth-child(4){background:#07a869}.pdf-root .pdf-group th:nth-child(5){background:#3d7eb9}.pdf-root .pdf-group th:nth-child(6){background:#0da9a6}.pdf-root .pdf-group th:nth-child(7){background:#c1b489;color:#273943}
+.pdf-root .pdf-kpis>div{padding:11px 9px;min-height:72px}.pdf-root .pdf-kpis span{font-size:10.5px;line-height:1.5;color:#fff}.pdf-root .pdf-kpis b{font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.pdf-root .pdf-section-title{text-align:right;direction:rtl;font-size:14px;line-height:1.6;margin:14px 0 8px}
+.pdf-root .pdf-bar-row{grid-template-columns:100px 1fr 75px;font-size:11px;line-height:1.5}
+.pdf-root .pdf-note{font-size:10px;line-height:1.7;margin:8px 0}
+.pdf-root .pdf-list{font-size:11px;line-height:1.8;text-align:right;direction:rtl;padding:10px 26px 10px 12px}
+.pdf-root .pdf-footer{left:40px;right:40px;bottom:25px}
+.pdf-root .pdf-footer-content{height:30px}.pdf-root .pdf-footer-content span{font-size:11px;height:30px;line-height:1.5;top:3px}
+.pdf-root .pdf-footer-teacher,.pdf-root .pdf-footer-principal{width:43%;overflow-wrap:anywhere}.pdf-root .pdf-footer-teacher{text-align:right}.pdf-root .pdf-footer-principal{text-align:left}
+.pdf-root .pdf-page-number{width:12%;text-align:center}
