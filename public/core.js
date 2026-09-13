@@ -25,7 +25,11 @@ const QUESTIONS=[
 const $=s=>document.querySelector(s);const app=$('#app');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,2800)}
-async function api(path,method='GET',data){const r=await fetch('/api'+path,{method,headers:{'content-type':'application/json'},body:data?JSON.stringify(data):undefined});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذر تنفيذ العملية.');return j}
+async function api(path,method='GET',data){
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+ try{const r=await fetch('/api'+path,{method,signal:controller.signal,cache:'no-store',headers:{'content-type':'application/json'},body:data?JSON.stringify(data):undefined});let j;try{j=await r.json()}catch{throw new Error('تعذر قراءة استجابة الخادم. حاولي مرة أخرى.')}if(!r.ok)throw new Error(j.error||'تعذر تنفيذ العملية.');return j}
+ catch(e){if(e.name==='AbortError')throw new Error('استغرق الاتصال وقتًا طويلًا. إجاباتك باقية؛ أعيدي المحاولة.');throw e}finally{clearTimeout(timeout)}
+}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 function norm(v){return String(v||'').trim().toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/\s+/g,' ')}
 function clientGradeKey(v){const x=norm(v),n=/السادس|سادس|6/.test(x)?6:/الخامس|خامس|5/.test(x)?5:/الرابع|رابع|4/.test(x)?4:/الثالث|ثالث|3/.test(x)?3:/الثاني|ثاني|2/.test(x)?2:/الاول|اول|1/.test(x)?1:'',st=/ابتدا/.test(x)?'ابتدائي':/متوسط/.test(x)?'متوسط':/ثانو/.test(x)?'ثانوي':/روض|رياض/.test(x)?'رياض':'';return n&&st?`${n}|${st}`:x.replace(/[^0-9a-z\u0600-\u06FF]/g,'')}

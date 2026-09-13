@@ -18,13 +18,5 @@
     }
   }
 
-  const observer = new MutationObserver(() => {
-    polishStudent();
-
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-  document.addEventListener('DOMContentLoaded', () => {
-    polishStudent();
-
-  });
+  document.addEventListener('DOMContentLoaded', polishStudent, { once: true });
 })();
