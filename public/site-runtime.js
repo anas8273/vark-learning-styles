@@ -5,6 +5,8 @@
   let adminPin = sessionStorage.getItem('varkAdminPin') || '';
   let pendingPrompt = null;
 
+  document.title = isAdmin ? 'نتائج اختبار أنماط التعلّم | لوحة المعلمة' : 'اختبار أنماط التعلّم | VARK';
+
   function escText(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -74,15 +76,17 @@
 
   function polishStudent() {
     if (isAdmin) return;
+    const brandTitle = document.querySelector('.brand-button b');
+    if (brandTitle) brandTitle.textContent = 'اختبار أنماط التعلّم';
     const brandSmall = document.querySelector('.brand-button small');
-    if (brandSmall && /VARK/i.test(brandSmall.textContent || '')) brandSmall.textContent = 'Learning Preferences Profile';
+    if (brandSmall && /VARK/i.test(brandSmall.textContent || '')) brandSmall.textContent = 'VARK Learning Profile';
     const brain = document.querySelector('.brain-icon');
     if (brain && brain.textContent !== 'V · A · R · K') brain.textContent = 'V · A · R · K';
     const shell = document.querySelector('.student-shell');
     if (shell && !shell.querySelector('.student-runtime-footer')) {
       const footer = document.createElement('footer');
       footer.className = 'student-runtime-footer';
-      footer.textContent = 'أداة مدرسية إرشادية لتفضيلات التعلّم، وليست تشخيصًا أو تصنيفًا ثابتًا للقدرات.';
+      footer.textContent = 'اختبار مدرسي إرشادي لأنماط التعلّم، وليس تشخيصًا أو تصنيفًا ثابتًا للقدرات.';
       shell.appendChild(footer);
     }
   }
@@ -90,6 +94,8 @@
   function polishAdmin() {
     if (!isAdmin) return;
     const top = document.querySelector('.admin-top');
+    const title = top?.querySelector('.brand b');
+    if (title) title.textContent = 'نتائج اختبار أنماط التعلّم';
     if (!top || top.querySelector('#adminLogout')) return;
     const actions = document.createElement('div');
     actions.className = 'runtime-admin-actions';
