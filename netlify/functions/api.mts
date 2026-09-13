@@ -2,235 +2,52 @@ import type { Config, Context } from '@netlify/functions';
 import { getDatabase } from '@netlify/database';
 
 const db = getDatabase();
-
-const DEFAULT_SETTINGS = {
-  expectedGrade: 'ثاني متوسط',
-  classLabels: ['2/أ', '2/ب', '2/ج', '2/د'],
-  schoolName: 'اسم المدرسة',
-  educationDept: 'وزارة التعليم',
-  teacherName: 'اسم المعلمة',
-  principalName: 'اسم المديرة',
-  subject: 'المادة',
-  academicYear: '1448هـ',
-  totalTarget: 120,
-  perClassTarget: 30,
-  currentCycleId: 'legacy',
-  currentCycleLabel: '1448هـ',
-  cycles: [] as Array<{ id: string; label: string; createdAt: string; closedAt?: string }>,
-};
-
-type Mode = 'V' | 'A' | 'R' | 'K';
+type Mode = 'V'|'A'|'R'|'K';
 type Scores = Record<Mode, number>;
-type Settings = typeof DEFAULT_SETTINGS;
-type StoredResult = {
-  name: string;
-  nameKey: string;
-  grade: string;
-  gradeRaw: string;
-  gradeKey: string;
-  className: string;
-  classRaw: string;
-  classKey: string;
-  V: number; A: number; R: number; K: number;
-  primary: string;
-  secondary: string;
-  description: string;
-  date: string;
-  updatedAt: string;
-  source: 'student' | 'manual' | 'edited';
-  cycleId: string;
-  cycleLabel: string;
-  deletedAt?: string;
-};
+type ReportSettingsSnapshot = {schoolName:string;educationDept:string;teacherName:string;principalName:string;subject:string;academicYear:string;expectedGrade:string;classLabels:string[];totalTarget:number;perClassTarget:number};
+type CycleInfo={id:string;label:string;createdAt:string;closedAt?:string;reportSettings?:ReportSettingsSnapshot};
+type Settings={expectedGrade:string;classLabels:string[];schoolName:string;educationDept:string;teacherName:string;principalName:string;subject:string;academicYear:string;totalTarget:number;perClassTarget:number;currentCycleId:string;currentCycleLabel:string;cycles:CycleInfo[]};
+type StoredResult={name:string;nameKey:string;grade:string;gradeRaw:string;gradeKey:string;className:string;classRaw:string;classKey:string;V:number;A:number;R:number;K:number;primary:string;secondary:string;description:string;topModes?:string[];date:string;updatedAt:string;source:'student'|'manual'|'edited';cycleId:string;cycleLabel:string;deletedAt?:string;supersededAt?:string;supersededById?:string};
+type DbResult=StoredResult&{id:string};
 
-const modeNames: Record<Mode, string> = { V: 'بصري', A: 'سمعي', R: 'قراءة/كتابة', K: 'حركي' };
+const DEFAULT_SETTINGS:Settings={expectedGrade:'ثاني متوسط',classLabels:['2/أ','2/ب','2/ج','2/د'],schoolName:'',educationDept:'',teacherName:'',principalName:'',subject:'',academicYear:'1448هـ',totalTarget:120,perClassTarget:30,currentCycleId:'legacy',currentCycleLabel:'1448هـ',cycles:[]};
+const MODE_NAMES:Record<Mode,string>={V:'بصري',A:'سمعي',R:'قراءة/كتابة',K:'حركي'};
+function norm(v:string){return String(v||'').trim().toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/\s+/g,' ')}
+function numberWord(v:string){const x=norm(v);return /السادس|سادس|6/.test(x)?6:/الخامس|خامس|5/.test(x)?5:/الرابع|رابع|4/.test(x)?4:/الثالث|ثالث|3/.test(x)?3:/الثاني|ثاني|2/.test(x)?2:/الاول|اول|1/.test(x)?1:null}
+function stage(v:string){const x=norm(v);if(/ابتدا/.test(x))return'ابتدائي';if(/متوسط/.test(x))return'متوسط';if(/ثانو/.test(x))return'ثانوي';if(/روض|رياض/.test(x))return'رياض';return''}
+function canonicalGrade(v:string){const n=numberWord(v),s=stage(v),labels=['','أول','ثاني','ثالث','رابع','خامس','سادس'];return n&&s?`${labels[n]} ${s}`:String(v||'').trim().replace(/\s+/g,' ')}
+function gradeKey(v:string){const n=numberWord(v),s=stage(v);if(n&&s)return`${n}|${s}`;return norm(v).replace(/الصف|صف/g,'').replace(/[^0-9a-z\u0600-\u06FF]/g,'')}
+function canonicalClass(v:string){let x=norm(v).replace(/الصف|الفصل|صف|فصل/g,'').replace(/السادس|سادس/g,'6').replace(/الخامس|خامس/g,'5').replace(/الرابع|رابع/g,'4').replace(/الثالث|ثالث/g,'3').replace(/الثاني|ثاني/g,'2').replace(/الاول|اول/g,'1').replace(/\\|\||-|–|—/g,'/').replace(/\s+/g,'').replace(/\/{2,}/g,'/');if(!x)return String(v||'').trim();if(!x.includes('/')){const m=x.match(/^([1-6])([1-9ابجدهوزحطيكلمنسعفصقرشتثخذضظغ])$/);if(m)x=`${m[1]}/${m[2]}`}const p=x.split('/');if(p.length===2&&p[1]==='ا')p[1]='أ';return p.join('/')}
+function classKey(v:string){return canonicalClass(v).replace(/[^0-9a-z\u0600-\u06FF]/g,'')}
+function summary(scores:Scores){const ordered=(Object.entries(scores) as [Mode,number][]).sort((a,b)=>b[1]-a[1]);const max=ordered[0][1],tops=ordered.filter(([,n])=>n===max).map(([m])=>MODE_NAMES[m]),secondary=ordered.find(([,n])=>n<max);let description=tops.length===4?'تفضيلات متوازنة بين الأنماط الأربعة':tops.length>1?`تفضيلات متساوية في الصدارة: ${tops.join('، ')}`:(max-ordered[1][1]<=3?`يميل التفضيل إلى ${tops[0]} مع حضور واضح لـ ${MODE_NAMES[ordered[1][0]]}`:`التفضيل الأبرز: ${tops[0]}`);return{primary:tops.join(' + '),secondary:secondary?MODE_NAMES[secondary[0]]:'—',description,topModes:tops}}
+function validateScores(input:any):Scores{const s={V:Number(input.V),A:Number(input.A),R:Number(input.R),K:Number(input.K)} as Scores;const vals=Object.values(s);if(!vals.every(v=>Number.isInteger(v)&&v>=0&&v<=20)||vals.reduce((a,b)=>a+b,0)!==20)throw new Error('يجب أن يكون مجموع درجات V/A/R/K مساويًا لـ20.');return s}
+function deriveScores(modes:any):Scores{if(!Array.isArray(modes)||modes.length!==20)throw new Error('تأكدي من الإجابة عن الأسئلة العشرين.');const s:Scores={V:0,A:0,R:0,K:0};for(const raw of modes){const m=String(raw) as Mode;if(!(m in s))throw new Error('توجد استجابة غير صالحة.');s[m]++}return s}
+function repaired(data:StoredResult):StoredResult{const gr=data.gradeRaw||data.grade||'',cr=data.classRaw||data.className||'';return{...data,...summary({V:+data.V||0,A:+data.A||0,R:+data.R||0,K:+data.K||0}),nameKey:norm(data.nameKey||data.name),gradeRaw:gr,grade:canonicalGrade(gr),gradeKey:gradeKey(gr),classRaw:cr,className:canonicalClass(cr),classKey:classKey(cr),cycleId:data.cycleId||'legacy',cycleLabel:data.cycleLabel||'1448هـ',updatedAt:data.updatedAt||data.date,source:data.source||'student'}}
+function logicalKey(r:Partial<StoredResult>){return`${r.cycleId||'legacy'}|${norm(r.nameKey||r.name||'')}|${gradeKey(r.gradeRaw||r.grade||'')}|${classKey(r.classRaw||r.className||'')}`}
+function json(data:any,status=200){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}})}
+async function bodyJson(req:Request){try{return await req.json()}catch{return{}}}
+async function getSettings():Promise<Settings>{const rows=await db.sql`SELECT data FROM settings WHERE id=${'main'} LIMIT 1`;if(!rows.length){await db.sql`INSERT INTO settings (id,data) VALUES (${'main'},${JSON.stringify(DEFAULT_SETTINGS)}::jsonb)`;return structuredClone(DEFAULT_SETTINGS)}const x=rows[0].data as Partial<Settings>;return{...structuredClone(DEFAULT_SETTINGS),...x,classLabels:Array.isArray(x.classLabels)?x.classLabels:DEFAULT_SETTINGS.classLabels,cycles:Array.isArray(x.cycles)?x.cycles:[]}}
+async function saveSettings(s:Settings){await db.sql`INSERT INTO settings (id,data,updated_at) VALUES (${'main'},${JSON.stringify(s)}::jsonb,NOW()) ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data,updated_at=NOW()`}
+async function audit(action:string,detail:string){await db.sql`INSERT INTO audit(id,action,detail,date) VALUES (${crypto.randomUUID()},${action},${detail},NOW())`}
+async function identityRows(cycleId:string,nKey:string,gKey:string,cKey:string,limit=50){const candidates=await db.sql`SELECT id,data,updated_at FROM results WHERE COALESCE(data->>'cycleId','legacy')=${cycleId} AND NULLIF(data->>'deletedAt','') IS NULL AND NULLIF(data->>'supersededAt','') IS NULL ORDER BY updated_at DESC LIMIT 1000`;return(candidates as any[]).filter(row=>{const r=repaired(row.data as StoredResult);return norm(r.nameKey||r.name)===nKey&&gradeKey(r.gradeRaw||r.grade)===gKey&&classKey(r.classRaw||r.className)===cKey}).slice(0,limit)}
+async function supersede(id:string,data:StoredResult,by:string,now:string){const next={...data,supersededAt:now,supersededById:by,updatedAt:now};await db.sql`UPDATE results SET data=${JSON.stringify(next)}::jsonb,updated_at=NOW() WHERE id=${id}`}
 
-function norm(value: string) {
-  return String(value || '').trim().toLowerCase()
-    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
-    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .replace(/\s+/g, ' ');
-}
-function compact(value: string) {
-  return norm(value).replace(/الصف|الفصل|صف|فصل/g, '').replace(/[\s\-_./\\]/g, '');
-}
-function gradeKey(value: string) { return compact(value); }
-function classKey(value: string) { return compact(value); }
-function cleanName(value: string) { return String(value || '').trim().replace(/\s+/g, ' '); }
-function logicalKey(r: Partial<StoredResult>) {
-  return `${r.cycleId || 'legacy'}|${norm(r.nameKey || r.name || '')}|${gradeKey(r.gradeRaw || r.grade || '')}|${classKey(r.classRaw || r.className || '')}`;
-}
-function summary(scores: Scores) {
-  const ordered = (Object.entries(scores) as Array<[Mode, number]>).sort((a, b) => b[1] - a[1]);
-  const max = ordered[0][1];
-  const top = ordered.filter(([, value]) => value === max).map(([m]) => modeNames[m]);
-  const primary = top.join(' + ');
-  const secondary = ordered.find(([, value]) => value < max)?.[0];
-  const description = top.length === 4
-    ? 'تفضيلات متوازنة بين الأنماط الأربعة'
-    : top.length > 1
-      ? `تفضيلات متساوية في الصدارة: ${top.join('، ')}`
-      : `التفضيل الأعلى حاليًا: ${top[0]}`;
-  return { primary, secondary: secondary ? modeNames[secondary] : '—', description };
-}
-function validateScores(input: any): Scores {
-  const scores = { V: Number(input.V), A: Number(input.A), R: Number(input.R), K: Number(input.K) } as Scores;
-  const vals = Object.values(scores);
-  if (!vals.every(v => Number.isInteger(v) && v >= 0 && v <= 20) || vals.reduce((a, b) => a + b, 0) !== 20) {
-    throw new Error('يجب أن يكون مجموع درجات V/A/R/K مساويًا لـ20.');
-  }
-  return scores;
-}
-function deriveScores(modes: unknown): Scores {
-  if (!Array.isArray(modes) || modes.length !== 20) throw new Error('الاستجابات غير مكتملة.');
-  const scores: Scores = { V: 0, A: 0, R: 0, K: 0 };
-  for (const raw of modes) {
-    const mode = String(raw) as Mode;
-    if (!(mode in scores)) throw new Error('توجد استجابة غير صالحة.');
-    scores[mode]++;
-  }
-  return scores;
-}
-async function getSettings(): Promise<Settings> {
-  const rows = await db.sql`SELECT data FROM settings WHERE id = ${'main'} LIMIT 1`;
-  if (!rows.length) {
-    await db.sql`INSERT INTO settings (id, data) VALUES (${'main'}, ${JSON.stringify(DEFAULT_SETTINGS)}::jsonb)`;
-    return structuredClone(DEFAULT_SETTINGS);
-  }
-  return { ...structuredClone(DEFAULT_SETTINGS), ...(rows[0].data as object) } as Settings;
-}
-async function saveSettings(settings: Settings) {
-  await db.sql`
-    INSERT INTO settings (id, data, updated_at) VALUES (${'main'}, ${JSON.stringify(settings)}::jsonb, NOW())
-    ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-  `;
-}
-async function audit(action: string, detail: string) {
-  await db.sql`INSERT INTO audit (id, action, detail, date) VALUES (${crypto.randomUUID()}, ${action}, ${detail}, NOW())`;
-}
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
-}
-async function bodyJson(request: Request) {
-  try { return await request.json(); } catch { return {}; }
-}
+export default async(req:Request,_ctx:Context)=>{const url=new URL(req.url),path=url.pathname.replace(/^\/api/,'')||'/';try{
+ if(req.method==='GET'&&path==='/_healthcheck')return json({ok:true});
+ if(req.method==='GET'&&path==='/config'){const s=await getSettings();return json({expectedGrade:s.expectedGrade,classLabels:s.classLabels})}
+ if(req.method==='POST'&&path==='/result'){
+  const p:any=await bodyJson(req),name=String(p.name||'').trim().replace(/\s+/g,' '),gradeRaw=String(p.grade||'').trim(),classRaw=String(p.className||'').trim();if(name.length<3||!gradeRaw||!classRaw)return json({error:'أكملي اسم الطالبة والصف والفصل.'},400);let scores:Scores;try{scores=deriveScores(p.modes)}catch(e){return json({error:e instanceof Error?e.message:'الاستجابات غير صالحة.'},400)}const info=summary(scores),percent={V:scores.V*5,A:scores.A*5,R:scores.R*5,K:scores.K*5};if(/اختبار\s*QA|QA/i.test(name))return json({updated:false,...info,percent});const s=await getSettings(),now=new Date().toISOString(),nKey=norm(name),gKey=gradeKey(gradeRaw),cKey=classKey(classRaw),matches=await identityRows(s.currentCycleId,nKey,gKey,cKey),canonical:any=matches[0];const data:StoredResult={name,nameKey:nKey,grade:canonicalGrade(gradeRaw),gradeRaw,gradeKey:gKey,className:canonicalClass(classRaw),classRaw,classKey:cKey,...scores,...info,date:canonical?.data?.date||now,updatedAt:now,source:'student',cycleId:s.currentCycleId,cycleLabel:s.currentCycleLabel};if(canonical){await db.sql`UPDATE results SET data=${JSON.stringify(data)}::jsonb,updated_at=NOW() WHERE id=${canonical.id}`;for(const extra of matches.slice(1) as any[])await supersede(extra.id,extra.data,canonical.id,now);return json({updated:true,...info,percent})}await db.sql`INSERT INTO results(id,data,created_at,updated_at) VALUES (${crypto.randomUUID()},${JSON.stringify(data)}::jsonb,NOW(),NOW())`;return json({updated:false,...info,percent});
+ }
+ if(req.method==='POST'&&path==='/admin/data'){
+  const s=await getSettings(),page=await db.sql`SELECT id,data,created_at,updated_at FROM results ORDER BY updated_at DESC LIMIT 5001`,hasMore=page.length>5000,rows=page.slice(0,5000),normalized=rows.map((row:any)=>({id:row.id,...repaired(row.data)})) as DbResult[];const deletedCutoff=new Map<string,number>();for(const r of normalized.filter(r=>r.deletedAt&&!r.supersededAt)){const k=logicalKey(r),t=new Date(r.deletedAt||0).getTime();if(t>(deletedCutoff.get(k)||0))deletedCutoff.set(k,t)}const active=normalized.filter(r=>{if(r.deletedAt||r.supersededAt)return false;const c=deletedCutoff.get(logicalKey(r));return !c||new Date(r.updatedAt||r.date).getTime()>c});const uniqueMap=new Map<string,DbResult>();let duplicatesCollapsed=0;for(const r of active){const k=logicalKey(r);if(uniqueMap.has(k)){duplicatesCollapsed++;continue}uniqueMap.set(k,r)}const unique=[...uniqueMap.values()],roster=unique.filter(r=>r.cycleId===s.currentCycleId),archivedRoster=unique.filter(r=>r.cycleId!==s.currentCycleId);const deletedMap=new Map<string,DbResult>();for(const r of normalized.filter(r=>r.deletedAt&&!r.supersededAt)){const k=logicalKey(r);if(!deletedMap.has(k))deletedMap.set(k,r)}const archiveMap=new Map<string,any>();for(const r of archivedRoster){const x=archiveMap.get(r.cycleId)||{id:r.cycleId,label:r.cycleLabel||r.cycleId,count:0,latest:''};x.count++;if(!x.latest||r.updatedAt>x.latest)x.latest=r.updatedAt;archiveMap.set(r.cycleId,x)}const audits=await db.sql`SELECT id,action,detail,date FROM audit ORDER BY date DESC LIMIT 30`;const normalizedLegacyCount=rows.filter((row:any)=>{const raw=row.data as StoredResult,r=repaired(raw);return(raw.gradeKey||'')!==r.gradeKey||(raw.classKey||'')!==r.classKey||(raw.grade||'')!==r.grade||(raw.className||'')!==r.className}).length;return json({roster,archivedRoster,deletedRoster:[...deletedMap.values()],archives:[...archiveMap.values()].sort((a,b)=>String(b.latest).localeCompare(String(a.latest))),audit:audits,settings:s,latest:roster[0]?.updatedAt||'',rawCount:active.length,duplicatesCollapsed,normalizedLegacyCount,hasMore});
+ }
+ if(req.method==='POST'&&path==='/admin/settings'){const p:any=await bodyJson(req),current=await getSettings(),x=p.settings||{};const pos=(v:any,f:number)=>Number.isInteger(+v)&&+v>0?+v:f;const next:Settings={...current,expectedGrade:String(x.expectedGrade??current.expectedGrade).trim(),classLabels:Array.isArray(x.classLabels)?x.classLabels.map((v:any)=>String(v).trim()).filter(Boolean).slice(0,20):current.classLabels,schoolName:String(x.schoolName??current.schoolName).trim(),educationDept:String(x.educationDept??current.educationDept).trim(),teacherName:String(x.teacherName??current.teacherName).trim(),principalName:String(x.principalName??current.principalName).trim(),subject:String(x.subject??current.subject).trim(),academicYear:String(x.academicYear??current.academicYear).trim(),totalTarget:pos(x.totalTarget,current.totalTarget),perClassTarget:pos(x.perClassTarget,current.perClassTarget)};await saveSettings(next);await audit('تحديث الإعدادات','تم تحديث بيانات التقرير والمستهدفات.');return json(next)}
+ if(req.method==='POST'&&path==='/admin/result/create'){const p:any=await bodyJson(req),x=p.result||{},name=String(x.name||'').trim(),gradeRaw=String(x.grade||'').trim(),classRaw=String(x.className||'').trim();if(name.length<3||!gradeRaw||!classRaw)return json({error:'أكملي اسم الطالبة والصف والفصل.'},400);let scores:Scores;try{scores=validateScores(x)}catch(e){return json({error:(e as Error).message},400)}const s=await getSettings(),n=norm(name),g=gradeKey(gradeRaw),c=classKey(classRaw);if((await identityRows(s.currentCycleId,n,g,c,2)).length)return json({error:'يوجد سجل حالي للطالبة نفسها في الصف والفصل.'},409);const now=new Date().toISOString(),data:StoredResult={name,nameKey:n,grade:canonicalGrade(gradeRaw),gradeRaw,gradeKey:g,className:canonicalClass(classRaw),classRaw,classKey:c,...scores,...summary(scores),date:now,updatedAt:now,source:'manual',cycleId:s.currentCycleId,cycleLabel:s.currentCycleLabel};await db.sql`INSERT INTO results(id,data,created_at,updated_at) VALUES (${crypto.randomUUID()},${JSON.stringify(data)}::jsonb,NOW(),NOW())`;await audit('إضافة نتيجة',`أضيفت نتيجة ${name}.`);return json({ok:true})}
+ if(req.method==='POST'&&path==='/admin/result/update'){const p:any=await bodyJson(req),id=String(p.id||''),found=await db.sql`SELECT data FROM results WHERE id=${id} LIMIT 1`;if(!found.length)return json({error:'السجل غير موجود.'},404);const old=repaired(found[0].data);if(old.deletedAt||old.supersededAt)return json({error:'لم يعد هذا السجل نشطًا.'},404);const s=await getSettings();if(old.cycleId!==s.currentCycleId)return json({error:'نتائج الأرشيف للقراءة فقط.'},409);const x=p.result||{},name=String(x.name||'').trim(),gradeRaw=String(x.grade||'').trim(),classRaw=String(x.className||'').trim();if(name.length<3||!gradeRaw||!classRaw)return json({error:'أكملي اسم الطالبة والصف والفصل.'},400);let scores:Scores;try{scores=validateScores(x)}catch(e){return json({error:(e as Error).message},400)}const n=norm(name),g=gradeKey(gradeRaw),c=classKey(classRaw),collision=await identityRows(old.cycleId,n,g,c,10);if(collision.some((r:any)=>r.id!==id))return json({error:'توجد نتيجة أخرى للطالبة نفسها في الصف والفصل المستهدفين.'},409);const oldMatches=await identityRows(old.cycleId,norm(old.nameKey||old.name),gradeKey(old.gradeRaw||old.grade),classKey(old.classRaw||old.className),50),now=new Date().toISOString();for(const d of oldMatches as any[])if(d.id!==id)await supersede(d.id,d.data,id,now);const next:StoredResult={...old,name,nameKey:n,grade:canonicalGrade(gradeRaw),gradeRaw,gradeKey:g,className:canonicalClass(classRaw),classRaw,classKey:c,...scores,...summary(scores),updatedAt:now,source:'edited'};await db.sql`UPDATE results SET data=${JSON.stringify(next)}::jsonb,updated_at=NOW() WHERE id=${id}`;await audit('تعديل نتيجة',`عُدلت نتيجة ${name}.`);return json({ok:true})}
+ if(req.method==='POST'&&path==='/admin/result/delete'){const p:any=await bodyJson(req),id=String(p.id||''),found=await db.sql`SELECT data FROM results WHERE id=${id} LIMIT 1`;if(!found.length)return json({error:'السجل غير موجود.'},404);const old=repaired(found[0].data),s=await getSettings();if(old.cycleId!==s.currentCycleId)return json({error:'نتائج الأرشيف للقراءة فقط.'},409);const now=new Date().toISOString(),next={...old,deletedAt:now,updatedAt:now,source:'edited'};await db.sql`UPDATE results SET data=${JSON.stringify(next)}::jsonb,updated_at=NOW() WHERE id=${id}`;await audit('حذف نتيجة',`نُقلت نتيجة ${old.name} إلى المحذوفات.`);return json({ok:true})}
+ if(req.method==='POST'&&path==='/admin/result/restore'){const p:any=await bodyJson(req),id=String(p.id||''),found=await db.sql`SELECT data FROM results WHERE id=${id} LIMIT 1`;if(!found.length)return json({error:'السجل غير موجود.'},404);const old=repaired(found[0].data);if(!old.deletedAt)return json({error:'هذه النتيجة ليست ضمن المحذوفات.'},404);const active=await identityRows(old.cycleId,norm(old.nameKey||old.name),gradeKey(old.gradeRaw||old.grade),classKey(old.classRaw||old.className),10);if(active.some((r:any)=>r.id!==id))return json({error:'توجد نتيجة نشطة للطالبة نفسها؛ احذفيها أو عدليها قبل الاستعادة.'},409);const {deletedAt:_d,supersededAt:_s,supersededById:_b,...rest}=old,now=new Date().toISOString(),next={...rest,...summary({V:rest.V,A:rest.A,R:rest.R,K:rest.K}),updatedAt:now,source:'edited'};await db.sql`UPDATE results SET data=${JSON.stringify(next)}::jsonb,updated_at=NOW() WHERE id=${id}`;await audit('استعادة نتيجة',`تمت استعادة نتيجة ${old.name}.`);return json({ok:true})}
+ if(req.method==='POST'&&path==='/admin/cycle/start'){const p:any=await bodyJson(req),label=String(p.label||'').trim().replace(/\s+/g,' ');if(label.length<2||label.length>80)return json({error:'اكتبي اسمًا واضحًا للدورة الجديدة.'},400);const current=await getSettings(),now=new Date().toISOString(),previous=current.cycles.find(c=>c.id===current.currentCycleId),closed:CycleInfo={...previous,id:current.currentCycleId,label:current.currentCycleLabel,createdAt:previous?.createdAt||now,closedAt:now,reportSettings:{schoolName:current.schoolName,educationDept:current.educationDept,teacherName:current.teacherName,principalName:current.principalName,subject:current.subject,academicYear:current.academicYear,expectedGrade:current.expectedGrade,classLabels:[...current.classLabels],totalTarget:current.totalTarget,perClassTarget:current.perClassTarget}},cycles=[...current.cycles.filter(c=>c.id!==closed.id),closed],next={...current,currentCycleId:`cycle-${Date.now()}`,currentCycleLabel:label,cycles};await saveSettings(next);await audit('بدء دورة جديدة',`أُرشفت دورة ${current.currentCycleLabel} وبدأت دورة ${label}.`);return json({ok:true})}
+ return json({error:'المسار غير موجود.'},404)
+ }catch(e){console.error(e);return json({error:e instanceof Error?e.message:'حدث خطأ غير متوقع.'},500)}};
 
-export default async (request: Request, _context: Context) => {
-  const url = new URL(request.url);
-  const path = url.pathname.replace(/^\/api/, '') || '/';
-  try {
-    if (request.method === 'GET' && path === '/_healthcheck') return json({ ok: true, platform: 'netlify' });
-    if (request.method === 'GET' && path === '/config') {
-      const s = await getSettings();
-      return json({ expectedGrade: s.expectedGrade, classLabels: s.classLabels });
-    }
-    if (request.method === 'POST' && path === '/result') {
-      const p: any = await bodyJson(request);
-      const name = cleanName(p.name);
-      const grade = String(p.grade || '').trim().replace(/\s+/g, ' ');
-      const className = String(p.className || '').trim().replace(/\s+/g, ' ');
-      if (name.length < 3 || !grade || !className) return json({ error: 'أكملي اسم الطالبة والصف والفصل.' }, 400);
-      const scores = deriveScores(p.modes);
-      const info = summary(scores);
-      const percent = { V: scores.V * 5, A: scores.A * 5, R: scores.R * 5, K: scores.K * 5 };
-      if (/qa|اختبار\s*qa/i.test(name)) return json({ updated: false, ...info, percent });
-      const s = await getSettings();
-      const now = new Date().toISOString();
-      const data: StoredResult = {
-        name, nameKey: norm(name), grade, gradeRaw: grade, gradeKey: gradeKey(grade),
-        className, classRaw: className, classKey: classKey(className), ...scores, ...info,
-        date: now, updatedAt: now, source: 'student', cycleId: s.currentCycleId, cycleLabel: s.currentCycleLabel,
-      };
-      await db.sql`INSERT INTO results (id, data, created_at, updated_at) VALUES (${crypto.randomUUID()}, ${JSON.stringify(data)}::jsonb, NOW(), NOW())`;
-      return json({ updated: true, ...info, percent });
-    }
-    if (request.method === 'POST' && path === '/admin/data') {
-      const s = await getSettings();
-      const resultRows = await db.sql`SELECT id, data, created_at, updated_at FROM results ORDER BY updated_at DESC LIMIT 500`;
-      const normalized = resultRows.map((row: any) => ({ id: row.id, ...row.data, cycleId: row.data.cycleId || 'legacy', cycleLabel: row.data.cycleLabel || '1448هـ' })) as Array<StoredResult & { id: string }>;
-      const latestByLogical = new Map<string, StoredResult & { id: string }>();
-      let duplicatesCollapsed = 0;
-      for (const row of normalized) {
-        const key = logicalKey(row);
-        if (latestByLogical.has(key)) { duplicatesCollapsed++; continue; }
-        latestByLogical.set(key, row);
-      }
-      const visible = [...latestByLogical.values()];
-      const roster = visible.filter(r => !r.deletedAt && r.cycleId === s.currentCycleId);
-      const archivedRoster = visible.filter(r => !r.deletedAt && r.cycleId !== s.currentCycleId);
-      const deletedRoster = visible.filter(r => Boolean(r.deletedAt) && r.cycleId === s.currentCycleId);
-      const archiveMap = new Map<string, { id: string; label: string; count: number; latest: string }>();
-      for (const r of archivedRoster) {
-        const current = archiveMap.get(r.cycleId) || { id: r.cycleId, label: r.cycleLabel || r.cycleId, count: 0, latest: '' };
-        current.count++;
-        if (!current.latest || String(r.updatedAt) > current.latest) current.latest = r.updatedAt;
-        archiveMap.set(r.cycleId, current);
-      }
-      const audits = await db.sql`SELECT id, action, detail, date FROM audit ORDER BY date DESC LIMIT 30`;
-      return json({
-        roster, archivedRoster, deletedRoster, archives: [...archiveMap.values()], audit: audits,
-        settings: s, latest: roster[0]?.updatedAt || '', rawCount: normalized.length,
-        duplicatesCollapsed, normalizedLegacyCount: normalized.filter(r => !r.cycleLabel || r.cycleId === 'legacy').length, hasMore: false,
-      });
-    }
-    if (request.method === 'POST' && path === '/admin/settings') {
-      const p: any = await bodyJson(request);
-      const current = await getSettings();
-      const incoming = p.settings || {};
-      const settings: Settings = {
-        ...current,
-        expectedGrade: String(incoming.expectedGrade ?? current.expectedGrade).trim(),
-        classLabels: Array.isArray(incoming.classLabels) ? incoming.classLabels.map((x: unknown) => String(x).trim()).filter(Boolean).slice(0, 20) : current.classLabels,
-        schoolName: String(incoming.schoolName ?? current.schoolName).trim(), educationDept: String(incoming.educationDept ?? current.educationDept).trim(),
-        teacherName: String(incoming.teacherName ?? current.teacherName).trim(), principalName: String(incoming.principalName ?? current.principalName).trim(),
-        subject: String(incoming.subject ?? current.subject).trim(), academicYear: String(incoming.academicYear ?? current.academicYear).trim(),
-        totalTarget: Math.max(1, Number(incoming.totalTarget || current.totalTarget)), perClassTarget: Math.max(1, Number(incoming.perClassTarget || current.perClassTarget)),
-      };
-      await saveSettings(settings);
-      await audit('تحديث الإعدادات', 'تم تحديث بيانات التقرير والمستهدفات.');
-      return json(settings);
-    }
-    if (request.method === 'POST' && path === '/admin/result/create') {
-      const p: any = await bodyJson(request); const input = p.result || {};
-      const name = cleanName(input.name), grade = String(input.grade || '').trim(), className = String(input.className || '').trim();
-      if (name.length < 3 || !grade || !className) return json({ error: 'أكملي اسم الطالبة والصف والفصل.' }, 400);
-      const scores = validateScores(input); const info = summary(scores); const s = await getSettings(); const now = new Date().toISOString();
-      const data: StoredResult = { name, nameKey: norm(name), grade, gradeRaw: grade, gradeKey: gradeKey(grade), className, classRaw: className, classKey: classKey(className), ...scores, ...info, date: now, updatedAt: now, source: 'manual', cycleId: s.currentCycleId, cycleLabel: s.currentCycleLabel };
-      const existing = await db.sql`SELECT id, data FROM results ORDER BY updated_at DESC LIMIT 500`;
-      if (existing.some((r: any) => !r.data.deletedAt && logicalKey({ ...r.data, cycleId: r.data.cycleId || 'legacy' }) === logicalKey(data))) return json({ error: 'يوجد سجل حالي للطالبة نفسها في الصف والفصل.' }, 409);
-      await db.sql`INSERT INTO results (id, data, created_at, updated_at) VALUES (${crypto.randomUUID()}, ${JSON.stringify(data)}::jsonb, NOW(), NOW())`;
-      await audit('إضافة نتيجة', `أضيفت نتيجة ${name}.`); return json({ ok: true });
-    }
-    if (request.method === 'POST' && path === '/admin/result/update') {
-      const p: any = await bodyJson(request); const id = String(p.id || ''); const input = p.result || {};
-      const rows = await db.sql`SELECT data FROM results WHERE id = ${id} LIMIT 1`; if (!rows.length) return json({ error: 'السجل غير موجود.' }, 404);
-      const existing = rows[0].data as StoredResult; const s = await getSettings(); if ((existing.cycleId || 'legacy') !== s.currentCycleId) return json({ error: 'نتائج الأرشيف للقراءة فقط.' }, 400);
-      const name = cleanName(input.name), grade = String(input.grade || '').trim(), className = String(input.className || '').trim(); if (name.length < 3 || !grade || !className) return json({ error: 'أكملي اسم الطالبة والصف والفصل.' }, 400);
-      const scores = validateScores(input); const info = summary(scores); const next: StoredResult = { ...existing, name, nameKey: norm(name), grade, gradeRaw: grade, gradeKey: gradeKey(grade), className, classRaw: className, classKey: classKey(className), ...scores, ...info, updatedAt: new Date().toISOString(), source: 'edited' };
-      await db.sql`UPDATE results SET data = ${JSON.stringify(next)}::jsonb, updated_at = NOW() WHERE id = ${id}`; await audit('تعديل نتيجة', `عُدلت نتيجة ${name}.`); return json({ ok: true });
-    }
-    if (request.method === 'POST' && path === '/admin/result/delete') {
-      const p: any = await bodyJson(request); const id = String(p.id || ''); const rows = await db.sql`SELECT data FROM results WHERE id = ${id} LIMIT 1`; if (!rows.length) return json({ error: 'السجل غير موجود.' }, 404);
-      const existing = rows[0].data as StoredResult; const s = await getSettings(); if ((existing.cycleId || 'legacy') !== s.currentCycleId) return json({ error: 'نتائج الأرشيف للقراءة فقط.' }, 400);
-      const next = { ...existing, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; await db.sql`UPDATE results SET data = ${JSON.stringify(next)}::jsonb, updated_at = NOW() WHERE id = ${id}`; await audit('حذف نتيجة', `نُقلت نتيجة ${existing.name} إلى المحذوفات.`); return json({ ok: true });
-    }
-    if (request.method === 'POST' && path === '/admin/result/restore') {
-      const p: any = await bodyJson(request); const id = String(p.id || ''); const rows = await db.sql`SELECT data FROM results WHERE id = ${id} LIMIT 1`; if (!rows.length) return json({ error: 'السجل غير موجود.' }, 404);
-      const existing = rows[0].data as StoredResult; const s = await getSettings(); if ((existing.cycleId || 'legacy') !== s.currentCycleId) return json({ error: 'نتائج الأرشيف للقراءة فقط.' }, 400);
-      const { deletedAt: _deletedAt, ...rest } = existing; const next = { ...rest, updatedAt: new Date().toISOString(), source: 'edited' as const }; await db.sql`UPDATE results SET data = ${JSON.stringify(next)}::jsonb, updated_at = NOW() WHERE id = ${id}`; await audit('استعادة نتيجة', `تمت استعادة نتيجة ${existing.name}.`); return json({ ok: true });
-    }
-    if (request.method === 'POST' && path === '/admin/cycle/start') {
-      const p: any = await bodyJson(request); const label = String(p.label || '').trim().replace(/\s+/g, ' '); if (label.length < 2 || label.length > 80) return json({ error: 'اكتبي اسمًا واضحًا للدورة الجديدة.' }, 400);
-      if (label.startsWith('__QA__')) return json({ qa: true, message: 'تم التحقق من العملية دون تغيير البيانات.' });
-      const current = await getSettings(); const now = new Date().toISOString(); const closed = { id: current.currentCycleId, label: current.currentCycleLabel, createdAt: current.cycles.find(c => c.id === current.currentCycleId)?.createdAt || now, closedAt: now };
-      const cycles = [...current.cycles.filter(c => c.id !== closed.id), closed]; const next = { ...current, currentCycleId: `cycle-${Date.now()}`, currentCycleLabel: label, cycles }; await saveSettings(next); await audit('بدء دورة جديدة', `أُرشفت دورة ${current.currentCycleLabel} وبدأت دورة ${label}.`); return json({ ok: true });
-    }
-    return json({ error: 'المسار غير موجود.' }, 404);
-  } catch (err) {
-    console.error(err);
-    const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
-    return json({ error: message }, 500);
-  }
-};
-
-export const config: Config = { path: '/api/*' };
+export const config:Config={path:'/api/*'};
