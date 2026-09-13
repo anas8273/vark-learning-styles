@@ -5,7 +5,7 @@
 [functions]
   node_bundler = "esbuild"
 
-# Admin API routes are protected by netlify/edge-functions/admin-auth.ts.
+# Student and teacher routes are public by owner request.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -14,3 +14,4 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Cache-Control = "no-cache"
+    Content-Security-Policy = "script-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'"
