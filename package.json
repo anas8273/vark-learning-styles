@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@netlify/database": "latest",
+    "@netlify/edge-functions": "latest",
     "@netlify/functions": "latest"
   }
 }

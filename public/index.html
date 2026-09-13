@@ -4,14 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#15445a" />
-  <title>مقياس تفضيلات التعلّم</title>
+  <meta name="description" content="مقياس مدرسي إرشادي لتفضيلات التعلّم ضمن الفئات البصرية والسمعية والقراءة/الكتابة والحركية." />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>مقياس تفضيلات التعلّم | V/A/R/K</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./production.css" />
+  <link rel="stylesheet" href="./enhancements.css" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="./site-runtime.js"></script>
   <script defer src="./core.js"></script>
   <script defer src="./student.js"></script>
   <script defer src="./stats.js"></script>
@@ -21,6 +26,6 @@
 </head>
 <body>
   <div id="app"></div>
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
 </body>
 </html>
