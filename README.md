@@ -33,3 +33,6 @@ npx netlify dev
 ```
 
 ملفات `.env*` و`.netlify/` مستبعدة عبر `.gitignore`.
+
+
+Access: student and teacher views are public, without a login, as requested by the owner. ADMIN_PIN is no longer required.
