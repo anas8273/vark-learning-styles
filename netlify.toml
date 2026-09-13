@@ -5,6 +5,7 @@
 [functions]
   node_bundler = "esbuild"
 
+# Admin API routes are protected by netlify/edge-functions/admin-auth.ts.
 [[headers]]
   for = "/*"
   [headers.values]
