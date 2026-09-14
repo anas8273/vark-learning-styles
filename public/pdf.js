@@ -21,14 +21,16 @@ async function createPdf(kind, rows, s, target, cycleLabel) {
     await document.fonts.ready;
     const strip =
         '<div class="identity-strip"><i></i><i></i><i></i><i></i><i></i></div>',
-      header = () =>
-        `<div class="pdf-header"><div class="pdf-logo"><img src="/resources/moe-logo.png" alt="وزارة التعليم"></div><div class="pdf-org"><span>الجهة التعليمية</span><b>${esc(s.educationDept || "وزارة التعليم")}</b><em>${esc(s.schoolName || "—")}</em></div></div>${strip}`,
+      header = () => {
+        const school = String(s.schoolName || "").trim();
+        return `<div class="pdf-header"><div class="pdf-logo"><img src="/resources/moe-logo.png" alt="وزارة التعليم"></div><div class="pdf-org"><span>الجهة التعليمية</span><b>${esc(s.educationDept || "وزارة التعليم")}</b>${school ? `<em>${esc(school)}</em>` : ""}</div></div>${strip}`;
+      },
       footer = () =>
         `<div class="pdf-footer"><div class="pdf-footer-line"></div><div class="pdf-footer-content"><span class="pdf-footer-teacher">المعلمة: <b>${esc(s.teacherName || "—")}</b></span><span class="pdf-page-number"></span><span class="pdf-footer-principal">المديرة: <b>${esc(s.principalName || "—")}</b></span></div></div>`,
       page = (body) =>
         `<section class="pdf-page">${header()}<div class="pdf-body">${body}</div>${footer()}</section>`,
       meta = (count) =>
-        `<div class="pdf-meta"><div><span>المادة</span><b>${esc(s.subject || "—")}</b></div><div><span>العام الدراسي</span><b>${esc(s.academicYear || "—")}</b></div><div><span>عدد الطالبات</span><b>${count}</b></div><div><span>المعلمة</span><b>${esc(s.teacherName || "—")}</b></div></div><div class="pdf-cycle">الدورة: <b>&nbsp;${esc(cycleLabel || "—")}</b></div>`;
+        `<div class="pdf-meta"><div><span>المادة</span><b>${esc(s.subject || "—")}</b></div><div><span>العام الدراسي</span><b>${esc(s.academicYear || "—")}</b></div><div><span>عدد الطالبات</span><b>${count}</b></div><div><span>المعلمة</span><b>${esc(s.teacherName || "—")}</b></div></div>`;
     const groups = new Map();
     rows.forEach((r) => {
       const k = `${r.cycleId}|${r.gradeKey}|${r.classKey}`;
@@ -46,7 +48,7 @@ async function createPdf(kind, rows, s, target, cycleLabel) {
           total = Math.ceil(g.length / 18);
         roster.push(
           page(
-            `<div class="pdf-title"><h1>كشف تحديد نمط التعلّم (VARK)</h1><p>نتائج اختبار أنماط التعلّم — أداة مدرسية إرشادية</p></div>${meta(g.length)}<div class="pdf-scope"><span><b>الدورة:</b> ${esc(g[0].cycleLabel)} &nbsp; <b>الصف:</b> ${esc(g[0].grade)} &nbsp; <b>الفصل:</b> ${esc(g[0].className)}</span>${total > 1 ? `<span>صفحة المجموعة ${gp} من ${total}</span>` : ""}</div><table class="pdf-table"><thead><tr><th style="width:8%"><div class="pdf-cell">م</div></th><th style="width:35%"><div class="pdf-cell">اسم الطالبة</div></th><th class="v"><div class="pdf-cell">بصري</div></th><th class="a"><div class="pdf-cell">سمعي</div></th><th class="r"><div class="pdf-cell">قراءة/كتابة</div></th><th class="k"><div class="pdf-cell">حركي</div></th></tr></thead><tbody>${chunk
+            `<div class="pdf-title"><h1>كشف تحديد نمط التعلّم (VARK)</h1><p>نتائج اختبار أنماط التعلّم — أداة مدرسية إرشادية</p></div>${meta(g.length)}<div class="pdf-scope"><span><b>الصف:</b> ${esc(g[0].grade)} &nbsp; <b>الفصل:</b> ${esc(g[0].className)}</span>${total > 1 ? `<span>صفحة المجموعة ${gp} من ${total}</span>` : ""}</div><table class="pdf-table"><thead><tr><th style="width:8%"><div class="pdf-cell">م</div></th><th style="width:35%"><div class="pdf-cell">اسم الطالبة</div></th><th class="v"><div class="pdf-cell">بصري</div></th><th class="a"><div class="pdf-cell">سمعي</div></th><th class="r"><div class="pdf-cell">قراءة/كتابة</div></th><th class="k"><div class="pdf-cell">حركي</div></th></tr></thead><tbody>${chunk
               .map((r, i) => {
                 const mx = Math.max(r.V, r.A, r.R, r.K);
                 return `<tr><td><div class="pdf-cell">${start + i + 1}</div></td><td><div class="pdf-cell">${esc(r.name)}</div></td>${["V", "A", "R", "K"].map((m) => `<td><div class="pdf-cell">${r[m] === mx ? "✓" : ""}</div></td>`).join("")}</tr>`;
