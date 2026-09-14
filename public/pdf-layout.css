@@ -1,9 +1,9 @@
 /* Fixed A4 export layout, independent of the application viewport. */
 .pdf-root,.pdf-root *{box-sizing:border-box}
 .pdf-root .pdf-page{width:794px;height:1123px;padding:0 40px;direction:rtl;font-family:'Tajawal',Arial,sans-serif}
-.pdf-root .pdf-header{height:108px;padding:24px 0 14px;gap:24px;align-items:center;overflow:hidden}
-.pdf-root .pdf-logo{flex:0 0 150px;width:150px;height:68px;min-width:150px;display:flex;align-items:center;justify-content:center}
-.pdf-root .pdf-logo img{display:block;width:150px!important;height:auto!important;max-width:150px!important;max-height:68px!important;object-fit:contain;flex:none}
+.pdf-root .pdf-header{height:108px;padding:24px 0 14px;gap:20px;align-items:center;overflow:hidden}
+.pdf-root .pdf-logo{flex:0 0 118px;width:118px;height:64px;min-width:118px;display:flex;align-items:center;justify-content:center}
+.pdf-root .pdf-logo img{display:block;width:auto!important;height:auto!important;max-width:112px!important;max-height:58px!important;object-fit:contain;flex:none}
 .pdf-root .pdf-org{flex:1;min-width:0;text-align:left;line-height:1.5}
 .pdf-root .pdf-org span{font-size:10px}.pdf-root .pdf-org b{font-size:14px}.pdf-root .pdf-org em{font-size:12px}
 .pdf-root .pdf-body{padding-top:20px}

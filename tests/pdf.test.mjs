@@ -23,7 +23,8 @@ test('PDF export preserves all 35 records, fixed A4 image size, logo constraints
   assert.equal(pages[2].querySelector('.pdf-page-number').textContent,'3 / 3');
   for(const p of pages){assert.equal(p.querySelectorAll('.pdf-logo img').length,1);assert.equal(p.querySelectorAll('.pdf-footer-content>span').length,3)}
   for(const dimensions of sizes)assert.deepEqual(dimensions,[0,0,210,297]);
-  assert.match(css,/width:150px!important;height:auto!important/);
+  assert.match(css,/width:auto!important;height:auto!important;max-width:112px!important;max-height:58px!important/);
+  assert.match(css,/\.pdf-root \.pdf-logo\{flex:0 0 118px;width:118px;height:64px;min-width:118px/);
   assert.equal(w.document.querySelector('.pdf-root'),null);
   assert.equal(w.createPdf.busy,false);
   dom.window.close();

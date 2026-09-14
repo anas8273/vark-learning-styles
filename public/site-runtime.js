@@ -8,7 +8,7 @@
     const brandSmall = document.querySelector('.brand-button small');
     if (brandSmall && /VARK/i.test(brandSmall.textContent || '')) brandSmall.textContent = 'VARK Learning Profile';
     const brain = document.querySelector('.brain-icon');
-    if (brain && brain.textContent !== 'V · A · R · K') brain.textContent = 'V · A · R · K';
+    if (brain && brain.textContent !== 'V·A·R·K') brain.textContent = 'V·A·R·K';
     const shell = document.querySelector('.student-shell');
     if (shell && !shell.querySelector('.student-runtime-footer')) {
       const footer = document.createElement('footer');

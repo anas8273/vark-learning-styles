@@ -13,6 +13,10 @@ test('student opens, completes 20 questions, retains retry identity and resets f
  let mutations=0;const observer=new w.MutationObserver(()=>{if(++mutations>30)throw Error('runaway rendering')});observer.observe(w.document,{subtree:true,childList:true});
  w.eval(['site-runtime.js','core.js','student.js','boot.js'].map(source).join('\n')); 
  await tick();assert.ok(w.document.querySelector('#start'));assert.ok(mutations<10);observer.disconnect();
+ assert.equal(w.document.querySelector('.brain-icon').textContent,'V·A·R·K');
+ const mobileCss=source('enhancements.css');
+ assert.ok(mobileCss.includes('white-space:nowrap;unicode-bidi:isolate'));
+ assert.ok(mobileCss.includes('.brain-icon{width:86px;height:58px;font-size:12px!important;letter-spacing:0}'));
  for(const [id,v] of Object.entries({name:'طالبة اختبار آلي',grade:'ثاني متوسط',className:'2/أ'}))w.document.getElementById(id).value=v;
  w.document.getElementById('start').click();
  for(let i=0;i<20;i++){w.document.querySelector('.answer').click();w.document.getElementById('next').click()}
