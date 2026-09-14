@@ -1,18 +1,17 @@
 /* Fixed A4 export layout, independent of the application viewport. */
 .pdf-root,.pdf-root *{box-sizing:border-box}
 .pdf-root .pdf-page{width:794px;height:1123px;padding:0 40px;direction:rtl;font-family:'Tajawal',Arial,sans-serif}
-.pdf-root .pdf-header{height:108px;padding:24px 0 14px;gap:20px;align-items:center;overflow:hidden;display:flex;justify-content:space-between}
-.pdf-root .pdf-logo{flex:0 0 102px;width:102px;height:58px;min-width:102px;display:block;background-image:url('/resources/moe-logo.png');background-repeat:no-repeat;background-position:center;background-size:94px auto}
+.pdf-root .pdf-header{height:126px;padding:18px 0 12px;gap:24px;align-items:center;overflow:hidden;display:flex;justify-content:space-between}
+.pdf-root .pdf-logo{flex:0 0 170px;width:170px;height:82px;min-width:170px;display:block;background-image:url('/resources/moe-logo.png');background-repeat:no-repeat;background-position:center;background-size:160px auto}
 .pdf-root .pdf-logo img{position:absolute!important;width:1px!important;height:1px!important;max-width:1px!important;max-height:1px!important;opacity:0!important;overflow:hidden!important;pointer-events:none!important}
 .pdf-root .pdf-org{flex:1;min-width:0;text-align:left;line-height:1.5}
-.pdf-root .pdf-org span{font-size:10px}.pdf-root .pdf-org b{font-size:14px}.pdf-root .pdf-org em{font-size:12px}
+.pdf-root .pdf-org span{font-size:10px}.pdf-root .pdf-org b{font-size:14px}.pdf-root .pdf-org em{display:block;font-size:12px;margin-top:2px}
 .pdf-root .pdf-body{padding-top:20px}
 .pdf-root .pdf-title{margin:0 0 16px;text-align:center}
 .pdf-root .pdf-title h1{font-size:23px;line-height:1.5;margin:0 0 4px}
 .pdf-root .pdf-title p{font-size:11px;line-height:1.6}
 .pdf-root .pdf-meta{margin-bottom:10px;gap:8px}.pdf-root .pdf-meta div{min-height:52px;padding:5px}
 .pdf-root .pdf-meta span{font-size:10px}.pdf-root .pdf-meta b{font-size:12px;line-height:1.5}
-.pdf-root .pdf-cycle{font-size:12px;line-height:1.7;margin:6px 0}
 .pdf-root .pdf-scope{height:auto;min-height:38px;padding:8px 10px;font-size:12px;line-height:1.5;gap:10px;margin:8px 0}
 .pdf-root .pdf-table th,.pdf-root .pdf-table td{height:32px;font-size:12px;line-height:1.4;vertical-align:middle}
 .pdf-root .pdf-table th{height:36px;font-size:11.5px}
