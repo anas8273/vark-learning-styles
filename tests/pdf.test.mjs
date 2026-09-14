@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
-test('PDF export preserves all 35 records, fixed A4 image size, logo constraints and eight analysis columns', async () => {
+test('PDF export preserves records, uses an unstretched ministry logo, and hides internal cycle labels', async () => {
   const css = readFileSync(new URL('../public/pdf-layout.css', import.meta.url), 'utf8');
   const dom = new JSDOM(`<style>${css}</style><div id="app"></div><div id="toast"></div>`, {runScripts:'outside-only', url:'https://example.test'});
   const w=dom.window, pages=[], sizes=[];
-  // jsdom has no layout engine. This test verifies export structure only.
   w.HTMLElement.prototype.getBoundingClientRect=function(){return {top:this.classList.contains('pdf-footer')?1068:0,bottom:900,left:0,right:794,width:794,height:900}};
   w.Image=class { set src(value) {queueMicrotask(()=>this.onload())} };
   w.HTMLImageElement.prototype.decode=async()=>{};
@@ -21,12 +20,19 @@ test('PDF export preserves all 35 records, fixed A4 image size, logo constraints
   assert.equal(pages[0].querySelectorAll('.pdf-group th').length,8);
   assert.equal(pages.slice(1).reduce((sum,p)=>sum+p.querySelectorAll('tbody tr').length,0),35);
   assert.equal(pages[2].querySelector('.pdf-page-number').textContent,'3 / 3');
-  for(const p of pages){assert.equal(p.querySelectorAll('.pdf-logo').length,1);assert.equal(p.querySelectorAll('.pdf-logo img').length,1);assert.equal(p.querySelectorAll('.pdf-footer-content>span').length,3)}
+  for(const p of pages){
+    assert.equal(p.querySelectorAll('.pdf-logo').length,1);
+    assert.equal(p.querySelectorAll('.pdf-logo img').length,1);
+    assert.equal(p.querySelectorAll('.pdf-org em').length,0);
+    assert.equal(p.querySelectorAll('.pdf-cycle').length,0);
+    assert.doesNotMatch(p.textContent,/الدورة\s*:/);
+    assert.equal(p.querySelectorAll('.pdf-footer-content>span').length,3);
+  }
   for(const dimensions of sizes)assert.deepEqual(dimensions,[0,0,210,297]);
-  assert.match(css,/\.pdf-root \.pdf-logo\{flex:0 0 102px;width:102px;height:58px;min-width:102px/);
-  assert.match(css,/background-size:94px auto/);
+  assert.match(css,/\.pdf-root \.pdf-logo\{flex:0 0 170px;width:170px;height:82px;min-width:170px/);
+  assert.match(css,/background-size:160px auto/);
   assert.match(css,/\.pdf-root \.pdf-logo img\{position:absolute!important;width:1px!important;height:1px!important/);
-  assert.doesNotMatch(css,/max-width:112px!important/);
+  assert.doesNotMatch(css,/\.pdf-cycle/);
   assert.equal(w.document.querySelector('.pdf-root'),null);
   assert.equal(w.createPdf.busy,false);
   dom.window.close();
