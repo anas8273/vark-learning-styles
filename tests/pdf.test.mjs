@@ -21,10 +21,12 @@ test('PDF export preserves all 35 records, fixed A4 image size, logo constraints
   assert.equal(pages[0].querySelectorAll('.pdf-group th').length,8);
   assert.equal(pages.slice(1).reduce((sum,p)=>sum+p.querySelectorAll('tbody tr').length,0),35);
   assert.equal(pages[2].querySelector('.pdf-page-number').textContent,'3 / 3');
-  for(const p of pages){assert.equal(p.querySelectorAll('.pdf-logo img').length,1);assert.equal(p.querySelectorAll('.pdf-footer-content>span').length,3)}
+  for(const p of pages){assert.equal(p.querySelectorAll('.pdf-logo').length,1);assert.equal(p.querySelectorAll('.pdf-logo img').length,1);assert.equal(p.querySelectorAll('.pdf-footer-content>span').length,3)}
   for(const dimensions of sizes)assert.deepEqual(dimensions,[0,0,210,297]);
-  assert.match(css,/width:auto!important;height:auto!important;max-width:112px!important;max-height:58px!important/);
-  assert.match(css,/\.pdf-root \.pdf-logo\{flex:0 0 118px;width:118px;height:64px;min-width:118px/);
+  assert.match(css,/\.pdf-root \.pdf-logo\{flex:0 0 102px;width:102px;height:58px;min-width:102px/);
+  assert.match(css,/background-size:94px auto/);
+  assert.match(css,/\.pdf-root \.pdf-logo img\{position:absolute!important;width:1px!important;height:1px!important/);
+  assert.doesNotMatch(css,/max-width:112px!important/);
   assert.equal(w.document.querySelector('.pdf-root'),null);
   assert.equal(w.createPdf.busy,false);
   dom.window.close();
